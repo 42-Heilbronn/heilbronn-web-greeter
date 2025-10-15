@@ -101,7 +101,6 @@ export class Data {
 	public pkgName: string;
 	public pkgVersion: string;
 	public hostname: string;
-	public pbVersion: string;
 	public loginScreenWallpaper: GreeterImage;
 	public userLockScreenWallpaper: GreeterImage;
 	public logo: GreeterImage;
@@ -118,16 +117,6 @@ export class Data {
 
 		// Get hostname from LightDM
 		this.hostname = window.lightdm?.hostname || 'unknown-hostname';
-
-		// Get pbVersion from /etc/pb_version if it exists
-		this.pbVersion = 'unknown-version';
-   		if (window.theme_utils?.readFile) {
-            window.theme_utils.readFile('/etc/pb_version', (content: string | undefined) => {
-                if (content && content.trim().length > 0) {
-                    this.pbVersion = content.trim();
-                }
-            });
-        }
 
 		// Set up images
 		this.loginScreenWallpaper = new GreeterImage(PATH_WALLPAPER_LOGIN);

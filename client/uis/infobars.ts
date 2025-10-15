@@ -43,8 +43,23 @@ export class InfoBarsUI {
 		// Populate hostname info
 		this._infoElements.hostname.innerText = window.data.hostname;
 
-		// Populate hostname info
-		this._infoElements.pbVersion.innerText = window.data.pbVersion;
+		// Get pbVersion from /var/lib/lightdm-data/hn/pb_version if it exists
+		this._infoElements.pbVersion.innerText = 'unknown-version';
+		fetch('web-greeter://app/var/lib/lightdm-data/hn/pb_version')
+		.then(response => {
+			if (response.ok) {
+				return response.text();
+			}
+			throw new Error('Network response was not ok.');
+		}).then(data => {
+			if (data && data.trim().length > 0) {
+				this._infoElements.pbVersion.innerText = data.trim();
+			}
+			else
+				this._infoElements.pbVersion.innerText = 'pb_version empty';
+		}).catch(error => {
+			this._infoElements.pbVersion.innerText = 'Failed to get pb_version';
+		});
 
 		// Populate clock element
 		this._updateClock();
