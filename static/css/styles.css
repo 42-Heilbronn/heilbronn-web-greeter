@@ -112,6 +112,15 @@ footer br::after {
 	line-height: 1rem;
 }
 
+.horibar-middle {
+	margin: 0 auto;
+	text-align: center;
+	line-height: 1rem;
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
 header span,
 footer span {
 	margin: 0 var(--padding);
