@@ -45,7 +45,7 @@ export class InfoBarsUI {
 
 		// Get pbVersion from /var/lib/lightdm-data/hn/pb_version if it exists
 		this._infoElements.pbVersion.innerText = 'unknown-version';
-		fetch('web-greeter://app/var/lib/lightdm-data/hn/pb_version')
+		fetch('web-greeter://app/usr/share/codam/web-greeter/pb_version')
 		.then(response => {
 			if (response.ok) {
 				return response.text();
