@@ -40,13 +40,18 @@ export class UI {
 
 		// Check for active sessions
 		const activeSession = lightdm.users.find((user: LightDMUser) => user.logged_in);
+		this._isLockScreen = activeSession !== undefined;
+		this._wallpaper = new WallpaperUI(this._isLockScreen);
 
 		if (activeSession !== undefined) {
 			// Active session found, show lock screen form
 			this._lockScreen = new LockScreenUI(auth, activeSession);
-			this._isLockScreen = true;
 			this._logo.style.display = 'none';
 			this._lockScreen.showForm();
+			if (activeSession.username === 'exam') {
+				// An exam session is active; show the exam wallpaper on the lock screen (cluster-gated in WallpaperUI)
+				this._wallpaper.setExamMode(true);
+			}
 		}
 		else {
 			// No active session found, show login form or exam mode form
@@ -75,7 +80,6 @@ export class UI {
 			this.setMessage(data.dataJson.message);
 		}
 
-		this._wallpaper = new WallpaperUI(this._isLockScreen);
 		this._calendar = new CalendarUI(data);
 	}
 
@@ -127,6 +131,7 @@ export class UI {
 		if (window.data.dataJson === undefined) { // If no data is available, show the regular login screen
 			this._examModeScreen?.hideForm();
 			this._loginScreen?.showForm();
+			this._wallpaper.setExamMode(false);
 			return false;
 		}
 
@@ -147,6 +152,7 @@ export class UI {
 				this._examModeScreen?.enableExamMode(ongoingExams);
 				// Exam mode screen is shown automatically by the function above
 			}
+			this._wallpaper.setExamMode(true);
 			return true;
 		}
 		else {
@@ -155,6 +161,7 @@ export class UI {
 				this._examModeScreen?.disableExamMode();
 				// Login screen is shown automatically by the function above
 			}
+			this._wallpaper.setExamMode(false);
 			return false;
 		}
 	}

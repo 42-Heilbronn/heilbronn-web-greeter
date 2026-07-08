@@ -3,6 +3,15 @@
 # Exit on error
 set -e
 
+# On exam-wallpaper clusters, set the desktop wallpaper for the exam user session
+EXAM_WALLPAPER_PATH="/usr/share/codam/web-greeter/exam-wallpaper.png"
+if [ "$USER" == "exam" ] && [[ "$(/usr/bin/hostname)" == 1-* ]] && [ -f "$EXAM_WALLPAPER_PATH" ]; then
+	/usr/bin/echo "Setting exam wallpaper $EXAM_WALLPAPER_PATH for user $USER"
+	/usr/bin/gsettings set org.gnome.desktop.background picture-uri "file://$EXAM_WALLPAPER_PATH" || true
+	/usr/bin/gsettings set org.gnome.desktop.background picture-uri-dark "file://$EXAM_WALLPAPER_PATH" || true
+	/usr/bin/gsettings set org.gnome.desktop.screensaver picture-uri "file://$EXAM_WALLPAPER_PATH" || true
+fi
+
 # Do not run this script for the following users
 SKIPPED_USERS="lightdm exam checkin event"
 if [[ $SKIPPED_USERS =~ (^|[[:space:]])$USER($|[[:space:]]) ]]; then

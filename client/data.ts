@@ -6,6 +6,10 @@ const PATH_DATA_JSON: string = 'data.json';
 const PATH_LOGO: string = '/usr/share/codam/web-greeter/logo.png';
 const PATH_WALLPAPER_LOGIN: string = '/usr/share/codam/web-greeter/login-screen.png';
 const PATH_WALLPAPER_LOCK_USER: string = '/tmp/codam-web-greeter-user-wallpaper';
+const PATH_WALLPAPER_EXAM: string = '/usr/share/codam/web-greeter/exam-wallpaper.png';
+// Hostname prefixes of clusters that show the exam wallpaper during exams
+// (hostnames follow the <cluster>-<row>-<seat> convention, e.g. 1-a-5)
+const EXAM_WALLPAPER_HOSTNAME_PREFIXES: string[] = ['1-', '5-'];
 const PATH_USER_IMAGE: string = '/tmp/codam-web-greeter-user-avatar';
 const PATH_USER_DEFAULT_IMAGE: string = '/usr/share/codam/web-greeter/user.png';
 
@@ -103,6 +107,7 @@ export class Data {
 	public hostname: string;
 	public loginScreenWallpaper: GreeterImage;
 	public userLockScreenWallpaper: GreeterImage;
+	public examWallpaper: GreeterImage;
 	public logo: GreeterImage;
 	public userImage: GreeterImage;
 	public userDefaultImage: GreeterImage;
@@ -121,6 +126,7 @@ export class Data {
 		// Set up images
 		this.loginScreenWallpaper = new GreeterImage(PATH_WALLPAPER_LOGIN);
 		this.userLockScreenWallpaper = new GreeterImage(PATH_WALLPAPER_LOCK_USER);
+		this.examWallpaper = new GreeterImage(PATH_WALLPAPER_EXAM);
 		this.logo = new GreeterImage(PATH_LOGO);
 		this.userImage = new GreeterImage(PATH_USER_IMAGE);
 		this.userDefaultImage = new GreeterImage(PATH_USER_DEFAULT_IMAGE);
@@ -128,6 +134,10 @@ export class Data {
 		// Fetch data.json every 5 minutes and fetch it now
 		setInterval(() => this._refetchDataJson(), this._dataJsonFetchInterval);
 		this._refetchDataJson();
+	}
+
+	public get hostInExamWallpaperCluster(): boolean {
+		return EXAM_WALLPAPER_HOSTNAME_PREFIXES.some((prefix) => this.hostname.startsWith(prefix));
 	}
 
 	public static examToEvent(exam: Exam42): Event42 {
