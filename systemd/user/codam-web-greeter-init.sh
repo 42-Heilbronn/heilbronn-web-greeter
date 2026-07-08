@@ -3,9 +3,16 @@
 # Exit on error
 set -e
 
-# On exam-wallpaper clusters, set the desktop wallpaper for the exam user session
+# On exam-wallpaper clusters, set the desktop wallpaper for the exam user session.
+# Keep the hostname prefixes in sync with EXAM_WALLPAPER_HOSTNAME_PREFIXES in client/data.ts.
+# Hostnames follow the <cluster>-<row>-<seat> convention, e.g. 5-A-1.
 EXAM_WALLPAPER_PATH="/usr/share/codam/web-greeter/exam-wallpaper.png"
-if [ "$USER" == "exam" ] && [[ "$(/usr/bin/hostname)" == 1-* ]] && [ -f "$EXAM_WALLPAPER_PATH" ]; then
+HOSTNAME_LOWER=$(/usr/bin/hostname | /usr/bin/tr '[:upper:]' '[:lower:]')
+case "$HOSTNAME_LOWER" in
+	1-*|5-*) IN_EXAM_WALLPAPER_CLUSTER=1 ;;
+	*) IN_EXAM_WALLPAPER_CLUSTER=0 ;;
+esac
+if [ "$USER" == "exam" ] && [ "$IN_EXAM_WALLPAPER_CLUSTER" == "1" ] && [ -f "$EXAM_WALLPAPER_PATH" ]; then
 	/usr/bin/echo "Setting exam wallpaper $EXAM_WALLPAPER_PATH for user $USER"
 	/usr/bin/gsettings set org.gnome.desktop.background picture-uri "file://$EXAM_WALLPAPER_PATH" || true
 	/usr/bin/gsettings set org.gnome.desktop.background picture-uri-dark "file://$EXAM_WALLPAPER_PATH" || true
