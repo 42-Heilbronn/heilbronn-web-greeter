@@ -113,7 +113,12 @@ export const fetchEventsStreakPlatform = async function (
 			"https://api.intranet.42heilbronn.de/events/"
 		);
 
-		const events42 = intraEvents.map(Event42.fromStreak);
+		// The streak platform also returns past events. Keep those that
+		// haven't ended yet, like the Intra query (range[end_at] from now).
+		const now = Date.now();
+		const events42 = intraEvents
+			.map(Event42.fromStreak)
+			.filter((event) => event.end_at.getTime() > now);
 
 		const filteredEvents = filterExamOrEventOnDate(events42) as Event42[];
 
