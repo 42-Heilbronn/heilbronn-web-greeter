@@ -1,5 +1,14 @@
 version: "3.7"
 
+# Docker keeps container logs forever by default. With ~300 workstations
+# polling every minute, nginx's access log alone grew by ~400k lines a day
+# (5.3 GB on webgreeter-server by November 2026).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   codam-web-greeter-server:
     container_name: codam-web-greeter-server
@@ -12,6 +21,7 @@ services:
       - ./messages.json:/app/messages.json
     env_file:
       - .env
+    logging: *logging
     # exposes port 3000 on the container from the Dockerfile
 
   nginx:
@@ -26,3 +36,4 @@ services:
       - ./configs/certs:/etc/nginx/certs
     depends_on:
       - codam-web-greeter-server
+    logging: *logging
