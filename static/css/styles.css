@@ -63,6 +63,17 @@ body {
 	user-select: none;
 }
 
+#wallpaper-video { /* for video wallpapers (mp4/webm), body background is used for images */
+	position: fixed;
+	z-index: -1;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	pointer-events: none !important;
+}
+
 #blur-filter { /* for wallpapers */
 	position: fixed;
 	z-index: 0;
