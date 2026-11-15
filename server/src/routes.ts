@@ -185,6 +185,13 @@ const fetchCacheEventsAndExams = async () => {
 };
 
 
+// A failed setup (e.g. no network yet right after boot) is retried with
+// growing delays. Without this the server stays without Intra data until
+// it is restarted.
+const SETUP_RETRY_MIN_MS = 10 * 1000;
+const SETUP_RETRY_MAX_MS = 5 * 60 * 1000;
+let setupRetryDelay = SETUP_RETRY_MIN_MS;
+
 const setUpIntraAPI = async function() {
 	try {
 		console.log(`Using Intra API UID: ${process.env.INTRA_API_UID}`);
@@ -207,8 +214,12 @@ const setUpIntraAPI = async function() {
 		}, cacheTTL * 1000 - 5000); // Convert TTL to milliseconds
 	}
 	catch(err) {
-		console.warn("[WARNING] Could not initialize Intra API, some features might not work");
+		console.warn(`[WARNING] Could not initialize Intra API, some features might not work. Retrying in ${setupRetryDelay / 1000}s`);
 		console.error(err);
 		api = undefined; // unset api
+		setTimeout(() => { void setUpIntraAPI(); }, setupRetryDelay);
+		setupRetryDelay = Math.min(setupRetryDelay * 2, SETUP_RETRY_MAX_MS);
+		return;
 	}
+	setupRetryDelay = SETUP_RETRY_MIN_MS;
 };
