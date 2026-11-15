@@ -2,7 +2,7 @@ import { Express, Request, Response } from 'express';
 import { Readable } from 'stream';
 import { Config, ConfigError, Event42, Exam42 } from './interfaces';
 import { getCurrentExams, getExamForHostName, getHostNameFromRequest, hostNameToIp, examAvailableForHost, getMessageForHostName } from './utils';
-import { downloadFromCDN, fetchEvents, fetchExams, getUserImageLink } from './intra';
+import { downloadFromCDN, fetchEvents, fetchEventsStreakPlatform, fetchExams, getUserImageLink } from './intra';
 
 // Intra API
 import Fast42 from '@codam/fast42';
@@ -142,7 +142,11 @@ const fetchCacheEvents = async function() {
 	}
 
 	try {
-		const events = await fetchEvents(api);
+		// Intra events plus the events of 42 Heilbronn's streak platform
+		const intraEvents = await fetchEvents(api);
+		const streakEvents = await fetchEventsStreakPlatform(api);
+		const events = [...intraEvents, ...streakEvents];
+		events.sort((a, b) => a.begin_at.getTime() - b.begin_at.getTime());
 		cache.set('events', events);
 		cache.set('last-cache-change', new Date());
 		console.log('Refreshed events data');

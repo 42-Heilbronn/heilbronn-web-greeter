@@ -1,5 +1,5 @@
 import Fast42 from '@codam/fast42';
-import { Event42, Exam42 } from './interfaces.js';
+import { Event42, Exam42, StreakEvent } from './interfaces.js';
 
 const CAMPUS_ID = process.env.INTRA_CAMPUS_ID;
 const FETCH_EVENTS_UPCOMING_DAYS = 21; // 3 weeks
@@ -86,6 +86,50 @@ export const fetchEvents = async function(api: Fast42): Promise<Event42[]> {
 	}
 	catch(err) {
 		console.log(err);
+		return [];
+	}
+};
+
+export async function make_request<T = any>(url: string): Promise<T[]> {
+	const res = await fetch(url, {
+		method: "GET",
+		headers: {
+			"Content-Type": "application/json",
+		},
+	});
+
+	if (!res.ok) {
+		throw new Error(`Request failed: ${res.status} ${res.statusText}`);
+	}
+
+	return await res.json();
+}
+
+export const fetchEventsStreakPlatform = async function (
+	api: Fast42
+): Promise<Event42[]> {
+	try {
+		const intraEvents = await make_request<StreakEvent>(
+			"https://api.intranet.42heilbronn.de/events/"
+		);
+
+		const events42 = intraEvents.map(Event42.fromStreak);
+
+		const filteredEvents = filterExamOrEventOnDate(events42) as Event42[];
+
+		if (filteredEvents.length === 0) {
+			console.log("No events found");
+			return [];
+		}
+
+		filteredEvents.sort(
+			(a, b) => a.begin_at.getTime() - b.begin_at.getTime()
+		);
+
+		console.log(`Fetched ${filteredEvents.length} events`);
+		return filteredEvents;
+	} catch (err) {
+		console.error(err);
 		return [];
 	}
 };

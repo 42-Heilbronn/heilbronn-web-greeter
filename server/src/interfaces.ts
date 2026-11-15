@@ -1,5 +1,26 @@
 import { parseIpRanges } from "./utils";
 
+export interface StreakEvent {
+	id: number;
+	title: string;
+	description: string;
+	start_date: string;
+	duration: number;
+
+	max_users: number | null;
+	subscribed_count: number;
+
+	created_at: string;
+	updated_at: string;
+
+	location?: {
+		name?: string | null;
+	};
+
+	// fields we currently ignore but keep for completeness
+	[key: string]: any;
+}
+
 export class Event42 {
 	id: number;
 	name: string;
@@ -15,6 +36,7 @@ export class Event42 {
 	created_at: Date;
 	updated_at: Date;
 
+
 	constructor(data: any) {
 		this.id = data['id'] ?? 0;
 		this.name = data['name'] ?? 'Event';
@@ -29,6 +51,26 @@ export class Event42 {
 		this.cursus_ids = data['cursus_ids'] ?? [];
 		this.created_at = new Date(data['created_at']) ?? new Date();
 		this.updated_at = new Date(data['updated_at']) ?? new Date();
+	}
+
+	static fromStreak(event: StreakEvent): Event42 {
+		return new Event42({
+			id: event.id,
+			name: event.title,
+			description: event.description,
+			location: event.location?.name ?? null,
+			kind: "streak",
+			max_people: event.max_users,
+			nbr_subscribers: event.subscribed_count,
+			begin_at: event.start_date,
+			end_at: new Date(
+				new Date(event.start_date).getTime() + event.duration * 60_000
+			),
+			campus_ids: [],
+			cursus_ids: [],
+			created_at: event.created_at,
+			updated_at: event.updated_at,
+		});
 	}
 }
 
