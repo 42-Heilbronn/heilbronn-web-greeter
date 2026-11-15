@@ -1,7 +1,8 @@
-import { Express } from 'express';
+import { Express, Request, Response } from 'express';
+import { Readable } from 'stream';
 import { Config, ConfigError, Event42, Exam42 } from './interfaces';
 import { getCurrentExams, getExamForHostName, getHostNameFromRequest, hostNameToIp, examAvailableForHost, getMessageForHostName } from './utils';
-import { fetchEvents, fetchExams, fetchUserImage } from './intra';
+import { downloadFromCDN, fetchEvents, fetchExams, getUserImageLink } from './intra';
 
 // Intra API
 import Fast42 from '@codam/fast42';
@@ -14,16 +15,16 @@ const cache = new NodeCache({ stdTTL: cacheTTL });
 
 const FOUND_HOSTS: string[] = [];
 
-export default (app: Express) => {
+export default async (app: Express) => {
 	// Initialize
-	setUpIntraAPI();
+	await setUpIntraAPI();
 
 	// Define routes
 	app.get('/', (req, res) => {
 		res.send({ status: 'ok' });
 	});
 
-	app.get('/api/config/:hostname?', async (req, res) => {
+	const configRouteHandler = async (req: Request, res: Response) => {
 		const hostname = await getHostNameFromRequest(req);
 
 		let events = cache.get<Event42[]>('events');
@@ -31,14 +32,10 @@ export default (app: Express) => {
 		let lastCacheChange = cache.get<Date>('last-cache-change');
 
 		if (!events && api) {
-			events = await fetchEvents(api);
-			cache.set('events', events);
-			cache.set('last-cache-change', new Date());
+			events = await fetchCacheEvents();
 		}
 		if (!exams && api) {
-			exams = await fetchExams(api);
-			cache.set('exams', exams);
-			cache.set('last-cache-change', new Date());
+			exams = await fetchCacheExams();
 		}
 
 		if (events === undefined || exams === undefined) {
@@ -61,7 +58,10 @@ export default (app: Express) => {
 			message: await getMessageForHostName(hostname),
 		};
 		res.send(config);
-	});
+	};
+
+	app.get('/api/config', configRouteHandler);
+	app.get('/api/config/:hostname', configRouteHandler);
 
 	app.get('/api/exam_mode_hosts', async (req, res) => {
 		// Check cache first
@@ -73,9 +73,7 @@ export default (app: Express) => {
 		// Get the current exams
 		let exams = cache.get<Exam42[]>('exams');
 		if (!exams && api) {
-			exams = await fetchExams(api);
-			cache.set('exams', exams);
-			cache.set('last-cache-change', new Date());
+			exams = await fetchCacheExams();
 		}
 		if (exams === undefined) {
 			return res.status(503).send({ error: 'No data to return, try again later', status: 'error' });
@@ -115,20 +113,73 @@ export default (app: Express) => {
 		if (!api) {
 			return res.status(503).send({ error: 'Intra API not initialized' });
 		}
-		if (cache.has(`user-image-${login}`)) {
-			const imageUrl = cache.get<string>(`user-image-${login}`);
-			if (imageUrl) {
-				return res.redirect(imageUrl);
+		try {
+			let imageUrl: string | null | undefined = cache.get<string>(`user-image-${login}`);
+			if (!cache.has(`user-image-${login}`)) {
+				imageUrl = await getUserImageLink(api, login);
 			}
+			if (!imageUrl) {
+				return res.status(404).send({ error: 'User not found or no image set' });
+			}
+			cache.set(`user-image-${login}`, imageUrl, cacheTTL); // Cache the image URL
+			const imageResponse = await downloadFromCDN(api, imageUrl);
+			res.setHeader('Content-Type', imageResponse.headers.get('content-type') || 'application/octet-stream');
+			res.setHeader('Cache-Control', imageResponse.headers.get('cache-control') || 'no-cache');
+			res.setHeader('Content-Length', imageResponse.headers.get('content-length') || '0');
+			return Readable.fromWeb(imageResponse.body as any).pipe(res);
 		}
-		const imageUrl = await fetchUserImage(api, login);
-		if (!imageUrl) {
-			return res.status(404).send({ error: 'User not found or no image set' });
+		catch (err) {
+			console.error(`Error fetching user image for ${login}:`, err);
+			return res.status(500).send({ error: 'Error fetching user image' });
 		}
-		cache.set(`user-image-${login}`, imageUrl, cacheTTL); // Cache the image URL
-		return res.redirect(imageUrl);
 	});
 };
+
+const fetchCacheEvents = async function() {
+	if (!api) {
+		console.warn('Intra API not initialized, cannot fetch events');
+		return undefined;
+	}
+
+	try {
+		const events = await fetchEvents(api);
+		cache.set('events', events);
+		cache.set('last-cache-change', new Date());
+		console.log('Refreshed events data');
+		return events;
+	} catch (err) {
+		console.error('Error refreshing events data:', err);
+	}
+	return undefined;
+};
+
+const fetchCacheExams = async function() {
+	if (!api) {
+		console.warn('Intra API not initialized, cannot fetch exams');
+		return undefined;
+	}
+
+	try {
+		const exams = await fetchExams(api);
+		cache.set('exams', exams);
+		cache.set('last-cache-change', new Date());
+		console.log('Refreshed exams data');
+		return exams;
+	} catch (err) {
+		console.error('Error refreshing exams data:', err);
+	}
+	return undefined;
+};
+
+const fetchCacheEventsAndExams = async () => {
+	if (!api) {
+		console.warn('Intra API not initialized, cannot fetch events and exams');
+		return;
+	}
+
+	await Promise.all([fetchCacheEvents(), fetchCacheExams()]);
+};
+
 
 const setUpIntraAPI = async function() {
 	try {
@@ -140,19 +191,16 @@ const setUpIntraAPI = async function() {
 		}]).init();
 
 		// Fetch initial data
-		if (!cache.has('events')) {
-			const events = await fetchEvents(api);
-			console.log('Fetched future events');
-			cache.set('events', events);
-			cache.set('last-cache-change', new Date());
+		if (!cache.has('events') || !cache.has('exams')) {
+			await fetchCacheEventsAndExams();
 		}
 
-		if (!cache.has('exams')) {
-			const exams = await fetchExams(api);
-			console.log('Fetched future exams');
-			cache.set('exams', exams);
-			cache.set('last-cache-change', new Date());
-		}
+		// Fetch events and exams to prevent cache expiration while the server is running
+		setInterval(async () => {
+			if (!api) return; // If API is not initialized, skip this fetch
+			console.log('Refreshing events and exams data from Intra API to prevent cache expiration...');
+			await fetchCacheEventsAndExams();
+		}, cacheTTL * 1000 - 5000); // Convert TTL to milliseconds
 	}
 	catch(err) {
 		console.warn("[WARNING] Could not initialize Intra API, some features might not work");
